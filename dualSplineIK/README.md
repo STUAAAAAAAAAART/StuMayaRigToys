@@ -5,7 +5,7 @@ ikSplineDriver = mc.duplicate(jointChain, po=False)
 # rename driver joints accordingly
 ikFwdSplineSolver = mc.duplicate(jointChain, po=False)
 # rename solver joints accordingly
-ribbon, primaryCurveIso, secondaryCurveIso, revPrimaryCurveDAG = setupDualSplineRibbon(jointChain, width=0.5, primaryInMiddle=True)
+ribbon, primaryCurveIso, secondaryCurveIso, revPrimaryCurveDAG = setupJointToRibbon(jointChain, width=0.5, primaryInMiddle=True)
 # revPrimaryCurveDAG = [transform, curveShape]
 forwardSolverHandle, forwardEffector = mc.ikHandle(ikFwdSplineSolver[0], ikFwdSplineSolver[-1], revPrimaryCurveDAG[0]) # temporary curve
 mc.connectAttr(f"{primaryCurveISO}.outputCurve", f"{ikFwdSplineSolver}.inCurve", f=True)
