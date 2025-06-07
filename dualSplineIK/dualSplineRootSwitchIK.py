@@ -11,9 +11,10 @@ import maya.api.OpenMaya as om2
 # reverseSolverJointList: list of joints bearing the result of the reverse spline IK; expects the rectified chain, not the direct IK result
 # fwdTangentCurve: name of node holding curve of forward tangent curve; expects curveFromSurfaceIso
 # revTangentCurve: name of node holding curve of reverse tangent curve; expects curveFromSurfaceIso
+# aimInputAxis: vector for aimMatrix.secondaryInputAxis axis direction
 #
 # return: name of network node, with the .ikRootSwitch attribute. expected to be used in mc.connectAttr() or mc.listRelatives()
-def setupDualSplineRootSwitchIK(resultJointList:list, forwardSolverJointList:list, reverseSolverJointList:list, fwdTangentCurve:str, revTangentCurve:str) -> str:
+def setupDualSplineRootSwitchIK(resultJointList:list, forwardSolverJointList:list, reverseSolverJointList:list, fwdTangentCurve:str, revTangentCurve:str, aimInputAxis=[0.0,0.0,-1.0]) -> str:
 	# assertion and input sanitisation script here (this will be a next time thing)
 
 	# list of joints
@@ -31,7 +32,6 @@ def setupDualSplineRootSwitchIK(resultJointList:list, forwardSolverJointList:lis
 	mc.addAttr(nodeList[2], ln='ikRootSwitch', at='double'                    	, hasMinValue = True, minValue = 0.0, hasMaxValue = True, maxValue = 1.0, defaultValue = 0.0, hidden = False, readable = True, writable = True, keyable = False)
 
 	downwardConnect = [None, None, None] # rev_aimMatrix, fwd_aimMatrix, result_multMatrix
-
 	for i in range(len(resultJointList) -1):
 		jointList[0] = resultJointList[i] 	# "splineDriver0" 
 		jointList[1] = reverseSolverJointList[i] # "jRevSplineChain0" 
@@ -46,43 +46,45 @@ def setupDualSplineRootSwitchIK(resultJointList:list, forwardSolverJointList:lis
 		nodeList[41] = jointList[4] # joint - jSplineSolver1, parent: jSplineSolver0
 
 		# base nodes
-		nodeList[8] = mc.createNode("inverseMatrix",	n=f"imx_jointOrientInverse_splineDriver0", skipSelect = True)
-		nodeList[9] = mc.createNode("blendMatrix",	n=f"bmx_splineDriver_splineDriver0", skipSelect = True)
-		nodeList[10] = mc.createNode("composeMatrix",	n=f"cmx_dualSplineVector_jSplineSolver0", skipSelect = True)
-		nodeList[11] = mc.createNode("nearestPointOnCurve",	n=f"npoc_revDualSplineVector_jSplineSolver0", skipSelect = True)
-		nodeList[12] = mc.createNode("aimMatrix",	n=f"aim_splineDriverRev_splineDriver0", skipSelect = True)
-		nodeList[13] = mc.createNode("nearestPointOnCurve",	n=f"npoc_fwdDualSplineVector_jSplineSolver0", skipSelect = True)
-		nodeList[14] = mc.createNode("composeMatrix",	n=f"cmx_jointOrient_splineDriver0", skipSelect = True)
-		nodeList[15] = mc.createNode("multMatrix",	n=f"mxm_splineTangent_jSplineSolver0", skipSelect = True)
-		nodeList[16] = mc.createNode("aimMatrix",	n=f"aim_splineDriverFwd_splineDriver0", skipSelect = True)
-		nodeList[17] = mc.createNode("multMatrix",	n=f"mxm_splineTangent_jRevSplineChain0", skipSelect = True)
-		nodeList[18] = mc.createNode("composeMatrix",	n=f"cmx_dualSplineVector_jRevSplineChain0", skipSelect = True)
-		nodeList[19] = mc.createNode("multMatrix",	n=f"mxm_splineDriver_splineDriver0", skipSelect = True)
-		nodeList[20] = mc.createNode("pickMatrix",	n=f"pmx_parentInverseRotate_splineDriver0", skipSelect = True)
-		nodeList[21] = mc.createNode("inverseMatrix",	n=f"imx_worldPointInverse_jSplineSolver0", skipSelect = True)
-		nodeList[22] = mc.createNode("inverseMatrix",	n=f"imx_worldPointInverse_jRevSplineChain0", skipSelect = True)
-		nodeList[23] = mc.createNode("decomposeMatrix",	n=f"dmx_worldMatrix_jRevSplineChain0", skipSelect = True)
-		nodeList[25] = mc.createNode("decomposeMatrix",	n=f"dmx_worldMatrix_jSplineSolver0", skipSelect = True)
-		nodeList[26] = mc.createNode("multMatrix",	n=f"mxm_splineForward_jSplineSolver0", skipSelect = True)
-		nodeList[27] = mc.createNode("pickMatrix",	n=f"pmx_splineForward_jSplineSolver0", skipSelect = True)
-		nodeList[28] = mc.createNode("decomposeMatrix",	n=f"dmx_jointDriver_splineDriver0", skipSelect = True)
-		nodeList[29] = mc.createNode("multMatrix",	n=f"mxm_splineForward_jRevSplineChain0", skipSelect = True)
-		nodeList[32] = mc.createNode("pickMatrix",	n=f"pmx_splineForward_jRevSplineChain0", skipSelect = True)
-		nodeList[33] = mc.createNode("pickMatrix",	n=f"pmx_worldPoint_jSplineSolver0", skipSelect = True)
-		nodeList[34] = mc.createNode("pickMatrix",	n=f"pmx_worldPoint_jRevSplineChain0", skipSelect = True)
-		nodeList[35] = mc.createNode("composeMatrix",	n=f"cmx_scale_jRevSplineChain0", skipSelect = True)
+		nodeList[8] = mc.createNode("inverseMatrix",	n=f"imx_jointOrientInverse_{nodeList[24]}", skipSelect = True)
+		nodeList[9] = mc.createNode("blendMatrix",	n=f"bmx_splineDriver_{nodeList[24]}", skipSelect = True)
+		nodeList[10] = mc.createNode("composeMatrix",	n=f"cmx_dualSplineVector_{nodeList[31]}", skipSelect = True)
+		nodeList[11] = mc.createNode("nearestPointOnCurve",	n=f"npoc_revDualSplineVector_{nodeList[31]}", skipSelect = True)
+		nodeList[12] = mc.createNode("aimMatrix",	n=f"aim_splineDriverRev_{nodeList[24]}", skipSelect = True)
+		nodeList[13] = mc.createNode("nearestPointOnCurve",	n=f"npoc_fwdDualSplineVector_{nodeList[31]}", skipSelect = True)
+		nodeList[14] = mc.createNode("composeMatrix",	n=f"cmx_jointOrient_{nodeList[24]}", skipSelect = True)
+		nodeList[15] = mc.createNode("multMatrix",	n=f"mxm_splineTangent_{nodeList[31]}", skipSelect = True)
+		nodeList[16] = mc.createNode("aimMatrix",	n=f"aim_splineDriverFwd_{nodeList[24]}", skipSelect = True)
+		nodeList[17] = mc.createNode("multMatrix",	n=f"mxm_splineTangent_{nodeList[40]}", skipSelect = True)
+		nodeList[18] = mc.createNode("composeMatrix",	n=f"cmx_dualSplineVector_{nodeList[40]}", skipSelect = True)
+		nodeList[19] = mc.createNode("multMatrix",	n=f"mxm_splineDriver_{nodeList[24]}", skipSelect = True)
+		nodeList[20] = mc.createNode("pickMatrix",	n=f"pmx_parentInverseRotate_{nodeList[24]}", skipSelect = True)
+		nodeList[21] = mc.createNode("inverseMatrix",	n=f"imx_worldPointInverse_{nodeList[31]}", skipSelect = True)
+		nodeList[22] = mc.createNode("inverseMatrix",	n=f"imx_worldPointInverse_{nodeList[40]}", skipSelect = True)
+		nodeList[23] = mc.createNode("decomposeMatrix",	n=f"dmx_worldMatrix_{nodeList[40]}", skipSelect = True)
+		nodeList[25] = mc.createNode("decomposeMatrix",	n=f"dmx_worldMatrix_{nodeList[31]}", skipSelect = True)
+		nodeList[26] = mc.createNode("multMatrix",	n=f"mxm_splineForward_{nodeList[31]}", skipSelect = True)
+		nodeList[27] = mc.createNode("pickMatrix",	n=f"pmx_splineForward_{nodeList[31]}", skipSelect = True)
+		nodeList[28] = mc.createNode("decomposeMatrix",	n=f"dmx_jointDriver_{nodeList[24]}", skipSelect = True)
+		nodeList[29] = mc.createNode("multMatrix",	n=f"mxm_splineForward_{nodeList[40]}", skipSelect = True)
+		nodeList[32] = mc.createNode("pickMatrix",	n=f"pmx_splineForward_{nodeList[40]}", skipSelect = True)
+		nodeList[33] = mc.createNode("pickMatrix",	n=f"pmx_worldPoint_{nodeList[31]}", skipSelect = True)
+		nodeList[34] = mc.createNode("pickMatrix",	n=f"pmx_worldPoint_{nodeList[40]}", skipSelect = True)
+		nodeList[35] = mc.createNode("composeMatrix",	n=f"cmx_scale_{nodeList[40]}", skipSelect = True)
 
-		nodeList[36] = mc.createNode("composeMatrix",	n=f"cmx_downstreamTranslate_jSplineSolver0", skipSelect = True)
+		nodeList[36] = mc.createNode("composeMatrix",	n=f"cmx_downstreamTranslate_{nodeList[31]}", skipSelect = True)
 		mc.connectAttr(f"{nodeList[41]}.translate", f"{nodeList[36]}.inputTranslate",	 f=True) # jSplineSolver1.translate -> cmx_downstreamTranslate_jSplineSolver0.inputTranslate
-		nodeList[39] = mc.createNode("composeMatrix",	n=f"cmx_downstreamTranslate_jRevSplineChain0", skipSelect = True)
+		nodeList[39] = mc.createNode("composeMatrix",	n=f"cmx_downstreamTranslate_{nodeList[40]}", skipSelect = True)
 		mc.connectAttr(f"{nodeList[40]}.translate", 	f"{nodeList[39]}.inputTranslate",	 f=True) # jRevSplineChain1.translate -> cmx_downstreamTranslate_jRevSplineChain0.inputTranslate
 		
 		mc.connectAttr(f"{nodeList[2]}.ikRootSwitch", f"{nodeList[9]}.target[0].weight",	 f=True) # net_fkikBlend_annotate.ikRootSwitch -> bmx_splineDriver_splineDriver0.target[0].weight
 
 		mc.setAttr(f'{nodeList[12]}.secondaryMode', 1 , type='enum') # aim_splineDriverRev_splineDriver0.secondaryMode
 		mc.setAttr(f'{nodeList[16]}.secondaryMode', 1 , type='enum') # aim_splineDriverFwd_splineDriver0.secondaryMode
-		mc.setAttr(f'{nodeList[16]}.secondaryInputAxisY', 0.0 , type='double') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisY
-		mc.setAttr(f'{nodeList[16]}.secondaryInputAxisZ', -1.0 , type='double') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisZ
+		mc.setAttr(f'{nodeList[16]}.secondaryInputAxis', *aimInputAxis , type='double3') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisY
+		#mc.setAttr(f'{nodeList[16]}.secondaryInputAxisY', 0.0 , type='double') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisY
+		#mc.setAttr(f'{nodeList[16]}.secondaryInputAxisZ', -1.0 , type='double') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisZ
+		
 		mc.setAttr(f'{nodeList[20]}.useTranslate', False ) # pmx_parentInverseRotate_splineDriver0.useTranslate
 		mc.setAttr(f'{nodeList[20]}.useScale', False ) # pmx_parentInverseRotate_splineDriver0.useScale
 		mc.setAttr(f'{nodeList[20]}.useShear', False ) # pmx_parentInverseRotate_splineDriver0.useShear
@@ -147,11 +149,11 @@ def setupDualSplineRootSwitchIK(resultJointList:list, forwardSolverJointList:lis
 		
 		if not i: # if this is the 0th thing in the list
 			# 0th nodes
-			nodeList[3] = mc.createNode("decomposeMatrix",	n=f"dmx_dualSplineRevOffsetTrans_splineDriver0", skipSelect = True)
-			nodeList[4] = mc.createNode("multMatrix",	n=f"mxm_dualSplineRevOffsetTrans_splineDriver0", skipSelect = True)
-			nodeList[5] = mc.createNode("blendMatrix",	n=f"bmx_dualSplineRevOffsetTrans_splineDriver0", skipSelect = True)
-			nodeList[6] = mc.createNode("multMatrix",	n=f"mxm_splineRevDriver_jRevSplineChain0", skipSelect = True)
-			nodeList[7] = mc.createNode("pickMatrix",	n=f"pmx_translate_jSplineSolver0", skipSelect = True)
+			nodeList[3] = mc.createNode("decomposeMatrix",	n=f"dmx_dualSplineRevOffsetTrans_{nodeList[24]}", skipSelect = True)
+			nodeList[4] = mc.createNode("multMatrix",	n=f"mxm_dualSplineRevOffsetTrans_{nodeList[24]}", skipSelect = True)
+			nodeList[5] = mc.createNode("blendMatrix",	n=f"bmx_dualSplineRevOffsetTrans_{nodeList[24]}", skipSelect = True)
+			nodeList[6] = mc.createNode("multMatrix",	n=f"mxm_splineRevDriver_{nodeList[30]}", skipSelect = True)
+			nodeList[7] = mc.createNode("pickMatrix",	n=f"pmx_translate_{nodeList[31]}", skipSelect = True)
 			mc.setAttr(f'{nodeList[7]}.useRotate', False ) # pmx_translate_jSplineSolver0.useRotate
 			mc.setAttr(f'{nodeList[7]}.useScale', False ) # pmx_translate_jSplineSolver0.useScale
 			mc.setAttr(f'{nodeList[7]}.useShear', False ) # pmx_translate_jSplineSolver0.useShear
