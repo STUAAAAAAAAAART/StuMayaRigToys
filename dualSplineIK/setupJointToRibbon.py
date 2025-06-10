@@ -49,12 +49,19 @@ def setupJointToRibbon(jointChain, width=0.5, primaryInMiddle=True) -> list:
 	secondaryCurve = mc.curve(ep=secondaryListEP) # ribbon side 1
 	ribbonTransform = mc.loft(primaryCurve, secondaryCurve, n=f"nurbs_dualSplineIK_{jointChain[0]}", o=True,ch=False)[0]
 	ribbonShape = mc.listRelatives(ribbonTransform, s=True)[0]
-	mc.delete(primaryCurve, secondaryCurve) # cleanup
+
+	checkLength = mc.arclen(tempCurve) - mc.arclen(f"{ribbonPrimaryISO}.outputCurve")
+	
 
 	# create and connect curveFromSurfaceIso nodes
+	#////////////////
+	# forward IK
+	#////////////////
 	primaryISO = mc.createNode("curveFromSurfaceIso",	n=f"siso_primaryCurve_{jointChain[0]}", skipSelect = True) # pass result to forward IK
 	mc.setAttr(f'{primaryISO}.isoparmValue', primaryIsoParam , type='double')
 	mc.connectAttr(f"{ribbonShape}.worldSpace", f"{primaryISO}.inputSurface",	 f=True)
+	
+
 
 	secondaryISO = mc.createNode("curveFromSurfaceIso",	n=f"siso_tangentCurve_{jointChain[0]}", skipSelect = True) # pass result to forward aimMatrix
 	mc.setAttr(f'{secondaryISO}.isoparmValue', secondaryIsoParam , type='double')
@@ -76,4 +83,5 @@ def setupJointToRibbon(jointChain, width=0.5, primaryInMiddle=True) -> list:
 
 	# close out
 
+	mc.delete(primaryCurve, secondaryCurve) # cleanup
 	return [ribbonShape, primaryISO, secondaryISO, primaryCurve]
