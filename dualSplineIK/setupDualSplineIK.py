@@ -6,8 +6,15 @@ import maya.api.OpenMaya as om2
 
 # activeSelection = om2.MGlobal.getActiveSelectionList()
 
-#def setupDualSplineIK(drivenJointList, splineJointList, ribbon, endJoint):
+# resultJointList: list of joints representing the result, in hierarchal order
+# forwardSolverJointList: list of joints bearing the result of the forward spline IK
+# fwdTangentCurve: name of node holding curve of forward tangent curve; expects curveFromSurfaceIso
+# aimInputAxis: vector for aimMatrix.secondaryInputAxis axis direction
+#
+# return: name of network node, with the .ikRootSwitch attribute. expected to be used in mc.connectAttr() or mc.listRelatives()
 def setupDualSplineIK(resultJointList:list, forwardSolverJointList:list, fwdTangentCurve:str, aimInputAxis=[0.0,0.0,-1.0]):
+	# no need for getting rigOp name as there are no DAG nodes created here
+	
 	# expected nodes:
 	# drivenJointList: spine0,         spine1,         spine2, ...,         spineN
 	# splineJointList: jSplineSolver0, jSplineSolver1, jSplineSolver2, ..., jSplineSolverN 
@@ -77,7 +84,7 @@ def setupDualSplineIK(resultJointList:list, forwardSolverJointList:list, fwdTang
 		
 
 		# write attributes
-		mc.setAttr(f'{nodeList_A[15]}.secondaryMode', 1 , type='enum') # aim_splineDriver_spine0.secondaryMode
+		mc.setAttr(f'{nodeList_A[15]}.secondaryMode', 1 ) # aim_splineDriver_spine0.secondaryMode
 		mc.setAttr(f'{nodeList_A[15]}.secondaryInputAxis', *aimInputAxis , type='double3') # aim_splineDriver_spine0.secondaryInputAxis
 		# mc.setAttr(f'{nodeList_A[15]}.secondaryInputAxisY', 0.0 , type='double') # aim_splineDriver_spine0.secondaryInputAxisY
 		# mc.setAttr(f'{nodeList_A[15]}.secondaryInputAxisZ', -1.0 , type='double') # aim_splineDriver_spine0.secondaryInputAxisZ
@@ -124,7 +131,7 @@ def setupDualSplineIK(resultJointList:list, forwardSolverJointList:list, fwdTang
 		#	Dynamic Attributes for nodeList_A[22] : mxm_splineDriver_spine1 ========================== 
 		#	mc.addAttr(nodeList_A[22], ln='forwardOrient', at='matrix'                     	, hidden = False, readable = True, writable = True, keyable = False)
 		#	mc.connectAttr(f"{nodeList_A[22]}.forwardOrient", f"{nodeList_A[22]}.matrixIn[0]",	 f=True) # mxm_splineDriver_spine1.forwardOrient -> mxm_splineDriver_spine1.matrixIn[0]
-		#	mc.setAttr(f'{nodeList_A[21]}.secondaryMode', 1 , type='enum') # aim_splineDriver_spine1.secondaryMode
+		#	mc.setAttr(f'{nodeList_A[21]}.secondaryMode', 1 ) # aim_splineDriver_spine1.secondaryMode
 		#	mc.connectAttr(f"{nodeList_A[21]}.outputMatrix", 	f"{nodeList_A[22]}.matrixIn[1]",	 f=True) # aim_splineDriver_spine1.outputMatrix -> mxm_splineDriver_spine1.matrixIn[1]
 			mc.connectAttr(f"{downwardConnect[0]}.forwardOrient", f"{nodeList_A[12]}.forwardOrient",	 f=True) # mxm_splineDriver_spine0.forwardOrient -> mxm_splineDriver_spine1.forwardOrient
 			mc.connectAttr(f"{downwardConnect[1]}.secondaryInputAxis", f"{nodeList_A[15]}.secondaryInputAxis",	 f=True) # aim_splineDriver_spine0.secondaryInputAxis -> aim_splineDriver_spine1.secondaryInputAxis

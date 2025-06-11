@@ -15,6 +15,7 @@ ikRevSplineSolver= reverseJointChainDriver(ikFwdSplineSolver, "reverseSplineSolv
 reverseSolverHandle, reverseEffector = mc.ikHandle(ikRevSplineSolver[0], ikRevSplineSolver[-1], revPrimaryCurveDAG)
 # rename reverse effector accordingly
 
+ikSplineDriver, ikFwdSplineSolver, ikRevSplineSolver, primaryCurveIso, secondaryCurveIso = setupDualSplineRootSwitchIK(jointChain)
 holdsSplineRootAttr = setupDualSplineRootSwitch(ikSplineDriver, ikFwdSplineSolver, ikRevSplineSolver, primaryCurveIso, secondaryCurveIso)
 
 simpleFinaliseIK(jointChain, ikSplineDriver) # finish by adding FK offsets and FK blend to IK system

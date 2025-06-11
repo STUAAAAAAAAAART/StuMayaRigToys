@@ -79,8 +79,8 @@ def setupDualSplineRootSwitchIK(resultJointList:list, forwardSolverJointList:lis
 		
 		mc.connectAttr(f"{nodeList[2]}.ikRootSwitch", f"{nodeList[9]}.target[0].weight",	 f=True) # net_fkikBlend_annotate.ikRootSwitch -> bmx_splineDriver_splineDriver0.target[0].weight
 
-		mc.setAttr(f'{nodeList[12]}.secondaryMode', 1 , type='enum') # aim_splineDriverRev_splineDriver0.secondaryMode
-		mc.setAttr(f'{nodeList[16]}.secondaryMode', 1 , type='enum') # aim_splineDriverFwd_splineDriver0.secondaryMode
+		mc.setAttr(f'{nodeList[12]}.secondaryMode', 1 ) # aim_splineDriverRev_splineDriver0.secondaryMode
+		mc.setAttr(f'{nodeList[16]}.secondaryMode', 1 ) # aim_splineDriverFwd_splineDriver0.secondaryMode
 		mc.setAttr(f'{nodeList[16]}.secondaryInputAxis', *aimInputAxis , type='double3') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisY
 		#mc.setAttr(f'{nodeList[16]}.secondaryInputAxisY', 0.0 , type='double') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisY
 		#mc.setAttr(f'{nodeList[16]}.secondaryInputAxisZ', -1.0 , type='double') # aim_splineDriverFwd_splineDriver0.secondaryInputAxisZ

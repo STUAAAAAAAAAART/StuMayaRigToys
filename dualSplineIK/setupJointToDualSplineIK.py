@@ -95,9 +95,14 @@ def reverseJointChainDriver(jointChain:list, jointBaseName:str) -> list :
 
 # ribbon, primaryCurveIso, secondaryCurveIso, revPrimaryCurveDAG = setupJointToRibbon(jointChain, width=0.5, primaryInMiddle=True)
 
-# return: list of following:
-# [ikHandle, ikEffector, ribbon, ikSplineDriverJointChain, fwdSplineSolverJointChain, revSplineSolverJointChain]
-def setupJointToDualSplineIK(jointChain, fwdJointBaseName:str, revJointBaseName:str, , width=0.5, primaryInMiddle=True, rigOpName="g_dualSplineIK") -> list:
+# ikDriverJoints: the splineIK driver, NOT the skinned joints (duplicate separately) - for holding ik result
+# width: the width of the ribbon (default: 0.5; an option just in case the need for a wider width comes up) 
+# primaryInMiddle: should the ribbon be alighed on the edge (False) or along the middle (True)
+# rigOpName: the name of the group 
+#
+# return: two-element list of following:
+# 0 - [ribbonShape, primaryISO, secondaryISO, primaryCurve]
+def setupJointToDualSplineIK(ikDriverJoints, width=0.5, primaryInMiddle=True, rigOpName="g_dualSplineIK") -> list:
 	startOffset = 0.0
 	endOffset = width
 	primaryIsoParam = 0.0
@@ -111,12 +116,19 @@ def setupJointToDualSplineIK(jointChain, fwdJointBaseName:str, revJointBaseName:
 	startOffsetMatrix = om2.MMatrix([1,0,0,0,0,1,0,0,0,0,1,0,0,0,startOffset,1])
 	endOffsetMatrix = om2.MMatrix([1,0,0,0,0,1,0,0,0,0,1,0,0,0,endOffset,1])
 
-	rigOpGroup = mc.createNode("transform", n=rigOpName)
+	rigOpGroup = rigOpName
+	if rigOpName == None:
+		rigOpGroup = f"g_dualSplineIK_{ikDriverJoints[0]}"
+	if not mc.objExists(rigOpGroup):
+		rigLogicRoot = "g_rigLogic"
+		if not mc.objExists(rigLogicRoot):
+			rigLogicRoot = mc.createNode("transform", n=rigLogicRoot, skipSelect=True)
+		rigOpGroup = mc.createNode("transform", n=rigOpGroup, p=rigOpGroup, skipSelect=True)
 
 	# logic joints setup; placing it at the top to make future input sanatisation easier
 	# doing pretty roundabout duplicate to skip over edge cases in hierachy (multiple children branches in hierachy etc)
 	jointForwardMSL:om2.MSelectionList = om2.MSelectionList()
-	for joint in jointChain:
+	for joint in ikDriverJoints:
 		jointForwardMSL.add( mc.duplicate(joint, n=f"j_fwdSplineResult_{joint}" ,po=True) )
 	for i in range(jointForwardMSL.length() -1 ):
 		mc.parent(jointForwardMSL.getSelectionStrings(i+1)[0], jointForwardMSL.getSelectionStrings(i)[0])
@@ -133,10 +145,12 @@ def setupJointToDualSplineIK(jointChain, fwdJointBaseName:str, revJointBaseName:
 	jointReverseIKResult = reverseJointChainDriver(jointReverseIK, "j_revSplineResult")
 	jointReverseIKResult[0] = mc.parent(jointReverseIK[0], rigOpGroup)[0]
 
+	# summary of joint chains:
+	# ikDriverJoints - IK driver, 
 
 	# get joint world matrices (EPs)
 	jointListMatrix = []
-	for joint in jointChain:
+	for joint in ikDriverJoints:
 		jointListMatrix.append(mc.getAttr(f"{joint}.worldMatrix"))
 
 	# make EPs using offets
@@ -159,54 +173,69 @@ def setupJointToDualSplineIK(jointChain, fwdJointBaseName:str, revJointBaseName:
 	ikFwdCurve = mc.curve(ep=ikCurveListEP) # forward IK spline driver curve, placeholder because using ribbon isoparm for this
 	ikCurveReverseEP = ikCurveListEP.copy()
 	ikCurveReverseEP.reverse()
-	ikRevCurve = mc.curve(n=f"spline_primaryCurveRev_{jointChain[0]}", ep=ikCurveReverseEP) # reverse IK spline driver curve
+	# ikRevCurve = mc.curve(n=f"spline_primaryCurveRev_{ikDriverJoints[0]}", ep=ikCurveReverseEP) # reverse IK spline driver curve
 	
 	# create curves and loft 
 	primaryCurve   = mc.curve(ep=primaryListEP) # ribbon side 0
 	secondaryCurve = mc.curve(ep=secondaryListEP) # ribbon side 1
-	ribbonTransform = mc.loft(primaryCurve, secondaryCurve, n=f"nurbs_dualSplineIK_{jointChain[0]}", o=True,ch=False)[0]
+	ribbonTransform = mc.loft(primaryCurve, secondaryCurve, n=f"nurbs_dualSplineIK_{ikDriverJoints[0]}", d=1, o=True, ch=False)[0]
 	ribbonShape = mc.listRelatives(ribbonTransform, s=True)[0]
-	
 
-	# create and connect curveFromSurfaceIso nodes
-	primaryISO = mc.createNode("curveFromSurfaceIso",	n=f"siso_primaryCurve_{jointChain[0]}", skipSelect = True) # pass result to forward IK
+	# create and connect curveFromSurfaceIso node: ribbon -> primary
+	primaryISO = mc.createNode("curveFromSurfaceIso", n=f"siso_primaryCurve_{ikDriverJoints[0]}", skipSelect = True) # pass result to forward IK
 	mc.setAttr(f'{primaryISO}.isoparmValue', primaryIsoParam , type='double')
 	mc.connectAttr(f"{ribbonShape}.worldSpace", f"{primaryISO}.inputSurface",	 f=True)
 	checkLength = mc.arclen(primaryCurve) - mc.arclen(f"{primaryISO}.outputCurve") # expects close to zero
 	if not -0.0001 < checkLength < 0.0001: # if the result isoparm is shorter than the actual length, implying wrong isoparm direction
 		mc.setAttr(f"{primaryISO}.isoparmDirection", 1) # enum
 
-	secondaryISO = mc.createNode("curveFromSurfaceIso",	n=f"siso_tangentCurve_{jointChain[0]}", skipSelect = True) # pass result to forward aimMatrix
+	# create and connect curveFromSurfaceIso node: ribbon -> secondary
+	secondaryISO = mc.createNode("curveFromSurfaceIso", n=f"siso_tangentCurve_{ikDriverJoints[0]}", skipSelect = True) # pass result to forward aimMatrix
 	mc.setAttr(f'{secondaryISO}.isoparmValue', secondaryIsoParam , type='double')
 	mc.connectAttr(f"{ribbonShape}.worldSpace", f"{secondaryISO}.inputSurface",	 f=True)
-	checkLength = mc.arclen(primaryCurve) - mc.arclen(f"{secondaryISO}.outputCurve") # expects close to zero
-	if not -0.0001 < checkLength < 0.0001: # if the result isoparm is shorter than the actual length
+	checkLength = mc.arclen(secondaryCurve) - mc.arclen(f"{secondaryISO}.outputCurve") # expects close to zero
+	if not -0.0001 < checkLength < 0.0001: # if the result isoparm is shorter than the actual length, implying wrong isoparm direction
 		mc.setAttr(f"{secondaryISO}.isoparmDirection", 1) # enum
 
-
-	ikHandleForward, ikEffectorForward, tempCurveFwd = mc.ikHandle(sj=jointForwardIK[0], ee=jointForwardIK[-1], n=f"ikh_dualSplineFwd_{jointChain[0]}", solver="ikSplineSolver", ccv=True) 
+	# create and connect forward solver
+	ikHandleForward, ikEffectorForward, tempCurveFwd = mc.ikHandle(sj=jointForwardIK[0], ee=jointForwardIK[-1], n=f"ikh_dualSplineFwd_{ikDriverJoints[0]}", solver="ikSplineSolver", ccv=True) 
 	mc.connectAttr(f"{primaryISO}.outputCurve", f"{ikHandleForward}.inCurve", f=True)
-	ikEffectorForward = mc.rename(ikEffectorForward, f"ike_dualSplineFwd_{jointChain[0]}")
+	ikEffectorForward = mc.rename(ikEffectorForward, f"ike_dualSplineFwd_{ikDriverJoints[0]}")
+	mc.delete(tempCurveFwd) # cleanup
+	del tempCurveFwd # cleanup
 	
-	
-	# create and connect reversing nodes
-	primaryReverse = mc.createNode("reverseCurve",	n=f"cRev_primaryCurve_{jointChain[0]}", skipSelect = True) 
+	# create and connect reverse curves
+	primaryReverse = mc.createNode("reverseCurve", n=f"cRev_primaryCurve_{ikDriverJoints[0]}", skipSelect = True) 
 	mc.connectAttr(f"{primaryISO}.outputCurve", f"{primaryReverse}.inputCurve",	 f=True)
-	mc.connectAttr(f"{primaryReverse}.outputCurve", f"{ikRevCurve}.create",	 f=True) # pass ikRevCurve to reverseIK
+	# mc.connectAttr(f"{primaryReverse}.outputCurve", f"{ikRevCurve}.create",	 f=True) # pass ikRevCurve to reverseIK
 
-	secondaryReverse = mc.createNode("reverseCurve",	n=f"cRev_tangentCurve_{jointChain[0]}", skipSelect = True) # pass result to reverse aimMatrix
-	mc.connectAttr(f"{secondaryReverseISO}.outputCurve", f"{secondaryReverse}.inputCurve",	 f=True) 
+	secondaryReverse = mc.createNode("reverseCurve", n=f"cRev_tangentCurve_{ikDriverJoints[0]}", skipSelect = True) # pass result to reverse aimMatrix
+	mc.connectAttr(f"{secondaryISO}.outputCurve", f"{secondaryReverse}.inputCurve",	 f=True)
 
-	ikHandleReverse, ikEffectorReverse, primaryCurveReverse = mc.ikHandle(sj=jointReverseIKResult[0], ee=jointReverseIKResult[-1], n=f"ikh_dualSplineRev_{jointChain[0]}", solver="ikSplineSolver", ccv=True) 
-	mc.connectAttr(f"{secondaryReverseISO}.outputCurve", f"{primaryCurveReverse}.create", f=True)
-	ikEffectorReverse = mc.rename(ikEffectorReverse, f"ike_dualSplineRev_{jointChain[0]}")
+	mc.delete(primaryCurve, secondaryCurve) # cleanup
+	del primaryCurve, secondaryCurve # cleanup
+	# in summary:
+	# primaryCurve - temporary - first edge for ribbon
+	# secondaryCurve - temporary - second edge for ribbon
+	# primaryISO - curve driver for spline IK (forward) 
+	# secondaryISO - curve target for spline IK (forward-tangent)
+	# primaryReverse - curve driver for spline IK (reverse)
+	# secondaryReverse - curve target for spline IK (reverse-tangent)
+
+	# create and connect reverse solver
+	# repurpose the automatically-created curve as reverseCurve doesn't live-update for some reason
+	ikHandleReverse, ikEffectorReverse, primaryCurveReverse = mc.ikHandle(sj=jointReverseIKResult[0], ee=jointReverseIKResult[-1], n=f"ikh_dualSplineRev_{ikDriverJoints[0]}", solver="ikSplineSolver", ccv=True) 
+	mc.connectAttr(f"{primaryReverse}.outputCurve", f"{primaryCurveReverse}.create", f=True)
+	ikEffectorReverse = mc.rename(ikEffectorReverse, f"ike_dualSplineRev_{ikDriverJoints[0]}")
+	primaryCurveReverse = mc.rename(ikEffectorReverse, f"spline_primaryCurveRev_{ikDriverJoints[0]}") 
 	
+	# stage one result: hand the following off to second stage
+	#                                 ikDriverJoints,           jointForwardIK,              jointReverseIK,              secondaryISO,        secondaryReverse,
+	# def setupDualSplineRootSwitchIK(resultJointList:list, forwardSolverJointList:list, reverseSolverJointList:list, fwdTangentCurve:str, revTangentCurve:str, aimInputAxis=[0.0,0.0,-1.0]) -> str:
 	
+	# ribbon, primaryCurveIso, secondaryCurveIso, revPrimaryCurveDAG = setupJointToRibbon(ikDriverJoints, width=0.5, primaryInMiddle=True)
 
 	# close out
-
-	mc.parent(ikHandleForward, ikEffectorForward, ikHandleReverse, ikEffectorReverse, rigOpGroup)
-	mc.delete(tempCurveFwd, tempCurveRev) # cleanup
-	mc.delete(primaryCurve, secondaryCurve) # cleanup
+	mc.parent(primaryCurveReverse, ikHandleForward, ikEffectorForward, ikHandleReverse, ikEffectorReverse, ribbonTransform, rigOpGroup)
 	#return [ribbonShape, primaryISO, secondaryISO, primaryCurve]
-	return [1ribbonShape, ]
+	return [[ikDriverJoints, jointForwardIK, jointReverseIK, secondaryISO, secondaryReverse], [ribbonShape, ]]

@@ -529,16 +529,16 @@ def fingerDualIK(rigGroup:str, controlGroup:str, handName:str, fingerList:str) -
 	mc.setAttr(f'{nodeList[67]}.translateY', keyable=False, channelBox=False) # jFinger0_ikOffset.translateY
 	mc.setAttr(f'{nodeList[67]}.translateZ', lock=True) # jFinger0_ikOffset.translateZ
 	mc.setAttr(f'{nodeList[67]}.translateZ', keyable=False, channelBox=False) # jFinger0_ikOffset.translateZ
-	mc.setAttr(f'{nodeList[76]}.secondaryMode', 1 , type='enum') # aim_noFlip0.secondaryMode
+	mc.setAttr(f'{nodeList[76]}.secondaryMode', 1 ) # aim_noFlip0.secondaryMode
 	mc.setAttr(f'{nodeList[76]}.secondaryInputAxisY', 0.0 , type='double') # aim_noFlip0.secondaryInputAxisY
 	mc.setAttr(f'{nodeList[76]}.secondaryInputAxisZ', 1.0 , type='double') # aim_noFlip0.secondaryInputAxisZ
 	mc.setAttr(f'{nodeList[81]}.useTranslate', False ) # pmx_noFlip0.useTranslate
 	mc.setAttr(f'{nodeList[81]}.useScale', False ) # pmx_noFlip0.useScale
 	mc.setAttr(f'{nodeList[81]}.useShear', False ) # pmx_noFlip0.useShear
-	mc.setAttr(f'{nodeList[85]}.operation', 2 , type='enum') # netLerp0_pma_diff.operation
-	mc.setAttr(f'{nodeList[92]}.operation', 2 , type='enum') # netInvLerp0_pma_diffs.operation
+	mc.setAttr(f'{nodeList[85]}.operation', 2 ) # netLerp0_pma_diff.operation
+	mc.setAttr(f'{nodeList[92]}.operation', 2 ) # netInvLerp0_pma_diffs.operation
 	mc.setAttr(f'{nodeList[95]}.translateY', 3.0 , type='doubleLinear') # locNoFlipPvEnd.translateY
-	mc.setAttr(f'{nodeList[104]}.operation', 2 , type='enum') # netInvLerp0_divide.operation
+	mc.setAttr(f'{nodeList[104]}.operation', 2 ) # netInvLerp0_divide.operation
 	mc.setAttr(f'{nodeList[109]}.translateX', lock=True) # rigRoot.translateX
 	mc.setAttr(f'{nodeList[109]}.translateX', keyable=False, channelBox=False) # rigRoot.translateX
 	mc.setAttr(f'{nodeList[109]}.translateY', lock=True) # rigRoot.translateY
